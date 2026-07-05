@@ -5,7 +5,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'SF Pro Display', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        sans: ['Geist', 'SF Pro Display', 'Helvetica Neue', 'Arial', 'sans-serif'],
         serif: ['Instrument Serif', 'Georgia', 'serif'],
         mono: ['SF Mono', 'Geist Mono', 'Consolas', 'monospace'],
       },
