@@ -14,7 +14,10 @@ api.interceptors.response.use(
   (response) => response.data,
   (error) => {
     const message = error.response?.data?.message || error.message || 'Request failed';
-    const normalized = new Error(message);
+    const normalized = new Error(message) as Error & {
+      status?: number;
+      errors?: unknown[];
+    };
     normalized.status = error.response?.status;
     normalized.errors = error.response?.data?.errors || [];
     return Promise.reject(normalized);

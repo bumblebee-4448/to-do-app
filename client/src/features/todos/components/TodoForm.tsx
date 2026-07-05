@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, type ReactElement } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -8,15 +8,23 @@ import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
 import { Textarea } from '../../../components/ui/Textarea';
 import { toInputDate } from '../../../utils/date';
-import { todoDefaults, todoSchema } from '../schemas/todoSchema';
+import { todoDefaults, todoSchema, type TodoFormValues } from '../schemas/todoSchema';
+import type { Todo } from '../types';
 
-export const TodoForm = ({ editingTodo, isSaving, onCancelEdit, onSubmit }) => {
+type TodoFormProps = {
+  editingTodo: Todo | null;
+  isSaving: boolean;
+  onCancelEdit: () => void;
+  onSubmit: (values: TodoFormValues) => void;
+};
+
+export const TodoForm = ({ editingTodo, isSaving, onCancelEdit, onSubmit }: TodoFormProps) => {
   const {
     formState: { errors },
     handleSubmit,
     register,
     reset,
-  } = useForm({
+  } = useForm<TodoFormValues>({
     resolver: zodResolver(todoSchema),
     defaultValues: todoDefaults,
   });
@@ -35,7 +43,7 @@ export const TodoForm = ({ editingTodo, isSaving, onCancelEdit, onSubmit }) => {
     reset(todoDefaults);
   }, [editingTodo, reset]);
 
-  const submit = (values) => {
+  const submit = (values: TodoFormValues) => {
     onSubmit(values);
     if (!editingTodo) {
       reset(todoDefaults);
@@ -101,7 +109,15 @@ export const TodoForm = ({ editingTodo, isSaving, onCancelEdit, onSubmit }) => {
   );
 };
 
-const Field = ({ label, error, children }) => (
+const Field = ({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: ReactElement<{ id: string }>;
+}) => (
   <div>
     <label className="mb-1.5 block text-sm font-medium text-zinc-800 dark:text-zinc-200" htmlFor={children.props.id}>
       {label}

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { TodoCreatePayload } from '../types';
 
 const todayAtMidnight = () => {
   const date = new Date();
@@ -29,14 +30,16 @@ export const todoSchema = z.object({
     }, 'Due date cannot be in the past'),
 });
 
-export const todoDefaults = {
+export type TodoFormValues = z.infer<typeof todoSchema>;
+
+export const todoDefaults: TodoFormValues = {
   title: '',
   description: '',
   priority: 'low',
   dueDate: '',
 };
 
-export const toTodoPayload = (values) => ({
+export const toTodoPayload = (values: TodoFormValues): TodoCreatePayload => ({
   title: values.title.trim(),
   description: values.description?.trim() || '',
   priority: values.priority,

@@ -11,23 +11,24 @@ import {
   useTodos,
   useUpdateTodo,
 } from '../hooks/useTodos';
-import { toTodoPayload } from '../schemas/todoSchema';
+import { toTodoPayload, type TodoFormValues } from '../schemas/todoSchema';
+import type { Todo, TodoFilters as TodoFilterState, TodoOrder, TodoSortBy, TodoStatus } from '../types';
 import { TodoFilters } from './TodoFilters';
 import { TodoForm } from './TodoForm';
 import { TodoList } from './TodoList';
 
 export const TodoDashboard = () => {
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [order, setOrder] = useState('desc');
-  const [editingTodo, setEditingTodo] = useState(null);
+  const [status, setStatus] = useState<TodoStatus | ''>('');
+  const [sortBy, setSortBy] = useState<TodoSortBy>('createdAt');
+  const [order, setOrder] = useState<TodoOrder>('desc');
+  const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
   const [mutationMessage, setMutationMessage] = useState('');
   const debouncedSearch = useDebounce(search);
   const theme = useThemeStore((state) => state.theme);
   const toggleTheme = useThemeStore((state) => state.toggleTheme);
 
-  const filters = useMemo(
+  const filters = useMemo<TodoFilterState>(
     () => ({
       search: debouncedSearch,
       status,
@@ -50,11 +51,11 @@ export const TodoDashboard = () => {
   const open = Math.max(todos.length - completed, 0);
   const isSaving = createTodo.isPending || updateTodo.isPending;
 
-  const handleMutationError = (error) => {
+  const handleMutationError = (error: Error) => {
     setMutationMessage(error.message || 'The change could not be saved.');
   };
 
-  const handleSubmit = (values) => {
+  const handleSubmit = (values: TodoFormValues) => {
     setMutationMessage('');
     const payload = toTodoPayload(values);
 
@@ -75,7 +76,7 @@ export const TodoDashboard = () => {
     });
   };
 
-  const handleToggle = (todo) => {
+  const handleToggle = (todo: Todo) => {
     setMutationMessage('');
     patchTodo.mutate(
       {
@@ -88,7 +89,7 @@ export const TodoDashboard = () => {
     );
   };
 
-  const handleDelete = (todo) => {
+  const handleDelete = (todo: Todo) => {
     setMutationMessage('');
     deleteTodo.mutate(todo._id, {
       onError: handleMutationError,
@@ -152,8 +153,8 @@ export const TodoDashboard = () => {
               onStatusChange={setStatus}
             />
             <TodoList
-              error={todosQuery.error}
-              hasNextPage={todosQuery.hasNextPage}
+              error={todosQuery.error ?? null}
+              hasNextPage={Boolean(todosQuery.hasNextPage)}
               isError={todosQuery.isError}
               isFetchingNextPage={todosQuery.isFetchingNextPage}
               isLoading={todosQuery.isLoading}
@@ -170,7 +171,7 @@ export const TodoDashboard = () => {
   );
 };
 
-const Stat = ({ label, value }) => (
+const Stat = ({ label, value }: { label: string; value: number }) => (
   <div className="min-w-20 px-3 py-2">
     <p className="font-mono text-lg font-semibold leading-none">{value}</p>
     <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{label}</p>

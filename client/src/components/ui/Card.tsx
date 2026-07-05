@@ -1,6 +1,7 @@
+import type { HTMLAttributes } from 'react';
 import { cn } from '../../utils/cn';
 
-export const Card = ({ className, ...props }) => (
+export const Card = ({ className, ...props }: HTMLAttributes<HTMLElement>) => (
   <section
     className={cn(
       'rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800',

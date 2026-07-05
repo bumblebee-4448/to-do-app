@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { cn } from '../../utils/cn';
 
 const badgeStyles = {
@@ -7,9 +8,16 @@ const badgeStyles = {
   completed: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300',
   pending: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200',
   overdue: 'bg-[#FDEBEC] text-[#9F2F2D] dark:bg-[rgba(159,47,45,0.15)] dark:text-red-300',
+} as const;
+
+type BadgeTone = keyof typeof badgeStyles;
+type BadgeProps = {
+  className?: string;
+  tone?: BadgeTone;
+  children: ReactNode;
 };
 
-export const Badge = ({ className, tone = 'pending', children }) => (
+export const Badge = ({ className, tone = 'pending', children }: BadgeProps) => (
   <span
     className={cn(
       'inline-flex items-center rounded-md px-2 py-1 text-xs font-medium capitalize leading-none',

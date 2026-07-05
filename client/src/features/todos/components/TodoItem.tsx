@@ -4,8 +4,16 @@ import { Button } from '../../../components/ui/Button';
 import { Checkbox } from '../../../components/ui/Checkbox';
 import { cn } from '../../../utils/cn';
 import { formatDueDate, isOverdue } from '../../../utils/date';
+import type { Todo } from '../types';
 
-export const TodoItem = ({ todo, onDelete, onEdit, onToggle }) => {
+type TodoItemProps = {
+  todo: Todo;
+  onDelete: (todo: Todo) => void;
+  onEdit: (todo: Todo) => void;
+  onToggle: (todo: Todo) => void;
+};
+
+export const TodoItem = ({ todo, onDelete, onEdit, onToggle }: TodoItemProps) => {
   const completed = todo.status === 'completed';
   const overdue = isOverdue(todo.dueDate, todo.status);
 

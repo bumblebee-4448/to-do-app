@@ -1,5 +1,17 @@
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
+import type { TodoOrder, TodoSortBy, TodoStatus } from '../types';
+
+type TodoFiltersProps = {
+  order: TodoOrder;
+  search: string;
+  sortBy: TodoSortBy;
+  status: TodoStatus | '';
+  onOrderChange: (order: TodoOrder) => void;
+  onSearchChange: (search: string) => void;
+  onSortByChange: (sortBy: TodoSortBy) => void;
+  onStatusChange: (status: TodoStatus | '') => void;
+};
 
 export const TodoFilters = ({
   order,
@@ -10,7 +22,7 @@ export const TodoFilters = ({
   onSearchChange,
   onSortByChange,
   onStatusChange,
-}) => (
+}: TodoFiltersProps) => (
   <div className="mb-5 grid gap-3 md:grid-cols-[minmax(180px,1fr)_150px_150px_130px]">
     <div>
       <label className="mb-1.5 block text-sm font-medium text-zinc-800 dark:text-zinc-200" htmlFor="search">
@@ -27,7 +39,7 @@ export const TodoFilters = ({
       <label className="mb-1.5 block text-sm font-medium text-zinc-800 dark:text-zinc-200" htmlFor="status">
         Status
       </label>
-      <Select id="status" value={status} onChange={(event) => onStatusChange(event.target.value)}>
+      <Select id="status" value={status} onChange={(event) => onStatusChange(event.target.value as TodoStatus | '')}>
         <option value="">All</option>
         <option value="pending">Pending</option>
         <option value="completed">Completed</option>
@@ -37,7 +49,7 @@ export const TodoFilters = ({
       <label className="mb-1.5 block text-sm font-medium text-zinc-800 dark:text-zinc-200" htmlFor="sortBy">
         Sort by
       </label>
-      <Select id="sortBy" value={sortBy} onChange={(event) => onSortByChange(event.target.value)}>
+      <Select id="sortBy" value={sortBy} onChange={(event) => onSortByChange(event.target.value as TodoSortBy)}>
         <option value="createdAt">Created</option>
         <option value="dueDate">Due date</option>
         <option value="priority">Priority</option>
@@ -48,7 +60,7 @@ export const TodoFilters = ({
       <label className="mb-1.5 block text-sm font-medium text-zinc-800 dark:text-zinc-200" htmlFor="order">
         Order
       </label>
-      <Select id="order" value={order} onChange={(event) => onOrderChange(event.target.value)}>
+      <Select id="order" value={order} onChange={(event) => onOrderChange(event.target.value as TodoOrder)}>
         <option value="desc">Desc</option>
         <option value="asc">Asc</option>
       </Select>

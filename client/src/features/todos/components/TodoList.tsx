@@ -1,5 +1,19 @@
 import { Button } from '../../../components/ui/Button';
+import type { Todo } from '../types';
 import { TodoItem } from './TodoItem';
+
+type TodoListProps = {
+  error: Error | null;
+  hasNextPage: boolean;
+  isError: boolean;
+  isFetchingNextPage: boolean;
+  isLoading: boolean;
+  todos: Todo[];
+  onDelete: (todo: Todo) => void;
+  onEdit: (todo: Todo) => void;
+  onFetchNextPage: () => void;
+  onToggle: (todo: Todo) => void;
+};
 
 export const TodoList = ({
   error,
@@ -12,7 +26,7 @@ export const TodoList = ({
   onEdit,
   onFetchNextPage,
   onToggle,
-}) => {
+}: TodoListProps) => {
   if (isLoading) {
     return (
       <div className="space-y-3" aria-label="Loading tasks">

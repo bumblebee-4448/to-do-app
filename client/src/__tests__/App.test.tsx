@@ -3,13 +3,30 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import App from '../App';
 import { queryClient } from '../config/queryClient';
+import type {
+  ApiSuccess,
+  Todo,
+  TodoCreatePayload,
+  TodoFilters,
+  TodoListResponse,
+  TodoPatchPayload,
+  TodoUpdatePayload,
+} from '../features/todos/types';
 
-const apiState = vi.hoisted(() => ({
+type MockTodoParams = TodoFilters & { page?: number };
+type ApiState = {
+  todos: Todo[];
+  nextId: number;
+};
+
+const apiState = vi.hoisted(
+  (): ApiState => ({
   todos: [],
   nextId: 1,
-}));
+  }),
+);
 
-const makeTodo = (overrides = {}) => {
+const makeTodo = (overrides: Partial<Todo> = {}): Todo => {
   const now = new Date('2026-07-05T12:00:00.000Z').toISOString();
   return {
     _id: String(apiState.nextId++),
@@ -26,7 +43,15 @@ const makeTodo = (overrides = {}) => {
 
 vi.mock('../features/todos/api/todosApi', () => ({
   todosApi: {
-    getTodos: vi.fn(async ({ page = 1, limit = 10, search = '', status = '', sortBy = 'createdAt', order = 'desc' } = {}) => {
+    getTodos: vi.fn(
+      async ({
+        page = 1,
+        limit = 10,
+        search = '',
+        status = '',
+        sortBy = 'createdAt',
+        order = 'desc',
+      }: Partial<MockTodoParams> = {}): Promise<TodoListResponse> => {
       let rows = [...apiState.todos];
       const keyword = search.toLowerCase();
 
@@ -63,22 +88,22 @@ vi.mock('../features/todos/api/todosApi', () => ({
         },
       };
     }),
-    createTodo: vi.fn(async (payload) => {
+    createTodo: vi.fn(async (payload: TodoCreatePayload): Promise<ApiSuccess<Todo>> => {
       const todo = makeTodo({ ...payload, status: 'pending' });
       apiState.todos.unshift(todo);
       return { success: true, data: todo };
     }),
-    updateTodo: vi.fn(async (id, payload) => {
+    updateTodo: vi.fn(async (id: string, payload: TodoUpdatePayload): Promise<ApiSuccess<Todo>> => {
       const index = apiState.todos.findIndex((todo) => todo._id === id);
       apiState.todos[index] = { ...apiState.todos[index], ...payload };
       return { success: true, data: apiState.todos[index] };
     }),
-    patchTodo: vi.fn(async (id, payload) => {
+    patchTodo: vi.fn(async (id: string, payload: TodoPatchPayload): Promise<ApiSuccess<Todo>> => {
       const index = apiState.todos.findIndex((todo) => todo._id === id);
       apiState.todos[index] = { ...apiState.todos[index], ...payload };
       return { success: true, data: apiState.todos[index] };
     }),
-    deleteTodo: vi.fn(async (id) => {
+    deleteTodo: vi.fn(async (id: string): Promise<void> => {
       apiState.todos = apiState.todos.filter((todo) => todo._id !== id);
     }),
   },

@@ -28,7 +28,7 @@ const AppRoutes = () => (
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+      <BrowserRouter>
         <AppRoutes />
       </BrowserRouter>
     </QueryClientProvider>
