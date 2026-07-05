@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const { body, param, query } = require('express-validator');
+import { Types } from 'mongoose';
+import { body, param, query } from 'express-validator';
 
 const allowedSortFields = ['createdAt', 'updatedAt', 'dueDate', 'priority', 'title'];
 const allowedPriorities = ['low', 'medium', 'high'];
@@ -7,7 +7,7 @@ const allowedStatuses = ['pending', 'completed'];
 
 const validateId = [
   param('id')
-    .custom((value) => mongoose.Types.ObjectId.isValid(value))
+    .custom((value: string) => Types.ObjectId.isValid(value))
     .withMessage('Todo not found'),
 ];
 
@@ -63,7 +63,7 @@ const updateTodoValidation = [
 
 const patchTodoValidation = [
   ...validateId,
-  body().custom((value, { req }) => {
+  body().custom((_value, { req }) => {
     const allowedFields = ['title', 'description', 'priority', 'dueDate', 'status'];
     return allowedFields.some((field) => Object.prototype.hasOwnProperty.call(req.body, field));
   }).withMessage('At least one editable field is required'),
@@ -87,7 +87,7 @@ const listTodosValidation = [
   query('order').optional({ checkFalsy: true }).isIn(['asc', 'desc']).withMessage('Order must be asc or desc'),
 ];
 
-module.exports = {
+export {
   createTodoValidation,
   updateTodoValidation,
   patchTodoValidation,

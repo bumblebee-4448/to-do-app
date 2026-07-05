@@ -1,9 +1,9 @@
-const cors = require('cors');
-const express = require('express');
-const morgan = require('morgan');
-const todoRoutes = require('./routes/todoRoutes');
-const errorHandler = require('./middlewares/errorHandler');
-const notFound = require('./middlewares/notFound');
+import cors from 'cors';
+import express from 'express';
+import morgan from 'morgan';
+import todoRoutes from './routes/todoRoutes';
+import errorHandler from './middlewares/errorHandler';
+import notFound from './middlewares/notFound';
 
 const app = express();
 
@@ -14,7 +14,7 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.status(200).json({
     success: true,
     data: {
@@ -27,4 +27,4 @@ app.use('/api/v1/todos', todoRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-module.exports = app;
+export default app;

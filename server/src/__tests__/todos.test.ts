@@ -1,13 +1,20 @@
-const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
-const request = require('supertest');
+import mongoose from 'mongoose';
+import { MongoMemoryServer } from 'mongodb-memory-server';
+import request from 'supertest';
+import app from '../app';
+import Todo, { type TodoPriority, type TodoStatus } from '../models/Todo';
 
-const app = require('../app');
-const Todo = require('../models/Todo');
+type TodoOverrides = Partial<{
+  title: string;
+  description: string;
+  priority: TodoPriority;
+  status: TodoStatus;
+  dueDate: Date;
+}>;
 
-let mongoServer;
+let mongoServer: MongoMemoryServer;
 
-const createTodo = (overrides = {}) =>
+const createTodo = (overrides: TodoOverrides = {}) =>
   Todo.create({
     title: 'Plan the week',
     description: 'Review active work and choose the next useful step.',
@@ -18,7 +25,11 @@ const createTodo = (overrides = {}) =>
   });
 
 beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create();
+  mongoServer = await MongoMemoryServer.create({
+    binary: {
+      version: '7.0.24',
+    },
+  });
   await mongoose.connect(mongoServer.getUri());
 });
 

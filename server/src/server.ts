@@ -1,7 +1,6 @@
-require('dotenv').config();
-
-const app = require('./app');
-const connectDB = require('./config/db');
+import 'dotenv/config';
+import app from './app';
+import connectDB from './config/db';
 
 const port = process.env.PORT || 5000;
 
@@ -12,7 +11,8 @@ const start = async () => {
       console.log(`Server listening on http://localhost:${port}`);
     });
   } catch (error) {
-    console.error(`Failed to start server: ${error.message}`);
+    const message = error instanceof Error ? error.message : 'Unknown startup error';
+    console.error(`Failed to start server: ${message}`);
     process.exit(1);
   }
 };

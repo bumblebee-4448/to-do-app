@@ -1,6 +1,6 @@
-const mongoose = require('mongoose');
+import { InferSchemaType, Schema, model } from 'mongoose';
 
-const todoSchema = new mongoose.Schema(
+const todoSchema = new Schema(
   {
     title: {
       type: String,
@@ -37,4 +37,8 @@ const todoSchema = new mongoose.Schema(
   },
 );
 
-module.exports = mongoose.model('Todo', todoSchema);
+export type Todo = InferSchemaType<typeof todoSchema>;
+export type TodoPriority = Todo['priority'];
+export type TodoStatus = Todo['status'];
+
+export default model<Todo>('Todo', todoSchema);

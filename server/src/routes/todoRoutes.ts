@@ -1,21 +1,21 @@
-const express = require('express');
-const asyncHandler = require('../middlewares/asyncHandler');
-const validateRequest = require('../middlewares/validateRequest');
-const {
+import express from 'express';
+import asyncHandler from '../middlewares/asyncHandler';
+import validateRequest from '../middlewares/validateRequest';
+import {
   createTodo,
   deleteTodo,
   getTodo,
   getTodos,
   patchTodo,
   updateTodo,
-} = require('../controllers/todoController');
-const {
+} from '../controllers/todoController';
+import {
   createTodoValidation,
   listTodosValidation,
   patchTodoValidation,
   updateTodoValidation,
   validateId,
-} = require('../validations/todoValidation');
+} from '../validations/todoValidation';
 
 const router = express.Router();
 
@@ -31,4 +31,4 @@ router
   .patch(patchTodoValidation, validateRequest, asyncHandler(patchTodo))
   .delete(validateId, validateRequest, asyncHandler(deleteTodo));
 
-module.exports = router;
+export default router;
