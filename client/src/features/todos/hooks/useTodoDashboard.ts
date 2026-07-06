@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { usePagination } from '../../../hooks/usePagination';
-import { useThemeStore } from '../../../stores/themeStore';
 import {
   useCreateTodo,
   useDeleteTodo,
@@ -12,7 +11,7 @@ import {
   useUpdateTodo,
 } from './useTodos';
 import { useBoardTodos } from './useBoardTodos';
-import { toTodoPayload, type TodoFormValues } from '../schemas/todoSchema';
+import { toTodoPayload, type TodoFormValues } from '../todoSchema';
 import type {
   Todo,
   TodoFilters,
@@ -38,8 +37,6 @@ export const useTodoDashboard = () => {
   const [todoToDelete, setTodoToDelete] = useState<Todo | null>(null);
   const [defaultColumn, setDefaultColumn] = useState<KanbanColumnId>('list');
 
-  const theme = useThemeStore((s) => s.theme);
-  const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const debouncedSearch = useDebounce(search);
   const listPagination = usePagination({ initialPage: 1 });
 
@@ -64,8 +61,11 @@ export const useTodoDashboard = () => {
     [debouncedSearch]
   );
 
-  const todosQuery = useTodos(filters);
-  const board = useBoardTodos(boardFilters);
+  const todosQuery = useTodos(filters, { enabled: view === 'list' });
+  const board = useBoardTodos(boardFilters, {
+    enabled: view === 'board',
+    visibleStatus: status,
+  });
   const createTodo = useCreateTodo();
   const updateTodo = useUpdateTodo();
   const patchTodo = usePatchTodo();
@@ -241,8 +241,6 @@ export const useTodoDashboard = () => {
     editingTodo,
     todoToDelete,
     defaultColumn,
-    theme,
-    toggleTheme,
     page: listPagination.page,
     setPage: listPagination.setPage,
     listPagination,

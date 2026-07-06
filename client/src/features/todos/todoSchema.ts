@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { TodoCreatePayload } from '../types';
+import type { TodoCreatePayload } from './types';
 
 const todayAtMidnight = () => {
   const date = new Date();

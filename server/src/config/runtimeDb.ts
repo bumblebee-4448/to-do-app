@@ -8,6 +8,12 @@ export type DbRuntime =
   | { kind: 'mongo'; uri: string }
   | { kind: 'memory' };
 
+type DbRuntimeEnv = {
+  NODE_ENV?: string;
+  MONGO_URI?: string;
+  ALLOW_IN_MEMORY_DB?: string;
+};
+
 export const resolveDbRuntime = ({
   nodeEnv,
   mongoUri,
@@ -27,3 +33,10 @@ export const resolveDbRuntime = ({
 
   throw new Error('MONGO_URI is required. Set ALLOW_IN_MEMORY_DB=true for local development only.');
 };
+
+export const resolveDbRuntimeFromEnv = (env: DbRuntimeEnv): DbRuntime =>
+  resolveDbRuntime({
+    nodeEnv: env.NODE_ENV,
+    mongoUri: env.MONGO_URI,
+    allowInMemoryDb: env.ALLOW_IN_MEMORY_DB === 'true',
+  });

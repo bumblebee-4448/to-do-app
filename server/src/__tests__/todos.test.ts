@@ -30,6 +30,7 @@ beforeAll(async () => {
     },
   });
   await mongoose.connect(mongoServer.getUri());
+  await Todo.syncIndexes();
 });
 
 afterAll(async () => {
@@ -75,6 +76,25 @@ describe('Todo API', () => {
     expect(res.body.data[0].title).toBe('Write React tests');
   });
 
+  test('uses MongoDB text search for search queries', async () => {
+    await createTodo({ title: 'Write React tests', description: 'Cover UI flow' });
+    const countSpy = jest.spyOn(Todo, 'countDocuments');
+
+    try {
+      const res = await request(app).get('/api/v1/todos?search=react');
+
+      expect(res.status).toBe(200);
+      expect(countSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          $text: { $search: 'react' },
+        }),
+      );
+      expect(countSpy.mock.calls[0]?.[0]).not.toHaveProperty('$or');
+    } finally {
+      countSpy.mockRestore();
+    }
+  });
+
   test('filters todos by status', async () => {
     await createTodo({ title: 'Pending task', status: 'incomplete' });
     await createTodo({ title: 'Completed task', status: 'completed' });
@@ -117,6 +137,24 @@ describe('Todo API', () => {
         description: 'Learn optimistic update rollback.',
         status: 'pending',
       },
+    });
+  });
+
+  test('creates todos at the end of their status column', async () => {
+    await createTodo({ title: 'Existing pending', status: 'pending', position: 1000 });
+
+    const res = await request(app)
+      .post('/api/v1/todos')
+      .send({
+        title: 'Next pending',
+        status: 'pending',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data).toMatchObject({
+      title: 'Next pending',
+      status: 'pending',
+      position: 2000,
     });
   });
 
@@ -232,6 +270,23 @@ describe('Todo API', () => {
     expect(res.body.data.status).toBe('pending');
     expect(res.body.data.position).toBeGreaterThan(first.position);
     expect(res.body.data.position).toBeLessThan(second.position);
+  });
+
+  test('moves a todo without neighbors to the end of the target column', async () => {
+    await createTodo({ title: 'Existing pending', status: 'pending', position: 1000 });
+    const moving = await createTodo({ title: 'Move to end', status: 'incomplete', position: 1000 });
+
+    const res = await request(app)
+      .patch(`/api/v1/todos/${moving._id}/move`)
+      .send({
+        status: 'pending',
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({
+      status: 'pending',
+      position: 2000,
+    });
   });
 
   test('deletes a todo with no content response (soft delete)', async () => {

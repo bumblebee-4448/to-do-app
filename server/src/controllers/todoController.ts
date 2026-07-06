@@ -20,18 +20,19 @@ type TodoListQuery = {
 };
 
 type TodoFilter = Partial<Pick<TodoShape, 'status'>> & {
-  $or?: Array<{ title: RegExp } | { description: RegExp }>;
+  isDeleted: { $ne: boolean };
+  $text?: { $search: string };
 };
 
 const editableFields = ['title', 'description', 'dueDate', 'status'] as const;
+const defaultStatus: TodoStatus = 'pending';
+const positionStep = 1000;
 
 const createError = (statusCode: number, message: string): AppError => {
   const error = new Error(message) as AppError;
   error.statusCode = statusCode;
   return error;
 };
-
-const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const pickEditableFields = (payload: Record<string, unknown>): EditableTodoPayload =>
   editableFields.reduce<EditableTodoPayload>((result, field) => {
@@ -57,20 +58,33 @@ const findTodoOrFail = async (id: string) => {
   return todo;
 };
 
+const getColumnTailPosition = async (status: TodoStatus) => {
+  const todo = await Todo.findOne({ status, isDeleted: { $ne: true } })
+    .sort({ position: -1, _id: -1 })
+    .select('position')
+    .lean();
+
+  return typeof todo?.position === 'number' ? todo.position : null;
+};
+
+const getNextColumnPosition = async (status: TodoStatus) => {
+  const tailPosition = await getColumnTailPosition(status);
+  return tailPosition === null ? positionStep : tailPosition + positionStep;
+};
+
 const getTodos = async (req: Request<object, object, object, TodoListQuery>, res: Response) => {
   const page = Number(req.query.page) || 1;
   const limit = Number(req.query.limit) || 10;
   const sortBy = req.query.sortBy || 'createdAt';
   const order = req.query.order === 'asc' ? 1 : -1;
-  const filter: TodoFilter & { isDeleted?: { $ne: boolean } } = { isDeleted: { $ne: true } };
+  const filter: TodoFilter = { isDeleted: { $ne: true } };
 
   if (req.query.status) {
     filter.status = req.query.status;
   }
 
   if (req.query.search) {
-    const regex = new RegExp(escapeRegex(req.query.search), 'i');
-    filter.$or = [{ title: regex }, { description: regex }];
+    filter.$text = { $search: req.query.search.trim() };
   }
 
   const total = await Todo.countDocuments(filter);
@@ -105,7 +119,13 @@ const getTodo = async (req: Request<{ id: string }>, res: Response) => {
 };
 
 const createTodo = async (req: Request<object, object, EditableTodoPayload>, res: Response) => {
-  const todo = await Todo.create(pickEditableFields(req.body));
+  const payload = pickEditableFields(req.body);
+  const status = payload.status ?? defaultStatus;
+  const todo = await Todo.create({
+    ...payload,
+    status,
+    position: await getNextColumnPosition(status),
+  });
 
   res.status(201).json({
     success: true,
@@ -150,20 +170,24 @@ const getNeighborPosition = async (id: string | null | undefined, status: TodoSt
   return typeof todo?.position === 'number' ? todo.position : null;
 };
 
-const computePosition = (afterPosition: number | null, beforePosition: number | null) => {
+const computePosition = async (
+  status: TodoStatus,
+  afterPosition: number | null,
+  beforePosition: number | null,
+) => {
   if (afterPosition !== null && beforePosition !== null) {
     return (afterPosition + beforePosition) / 2;
   }
 
   if (afterPosition !== null) {
-    return afterPosition + 1000;
+    return afterPosition + positionStep;
   }
 
   if (beforePosition !== null) {
-    return beforePosition - 1000;
+    return beforePosition - positionStep;
   }
 
-  return Date.now();
+  return getNextColumnPosition(status);
 };
 
 const moveTodo = async (
@@ -176,7 +200,7 @@ const moveTodo = async (
 
   const afterPosition = await getNeighborPosition(req.body.afterId, req.body.status);
   const beforePosition = await getNeighborPosition(req.body.beforeId, req.body.status);
-  const position = computePosition(afterPosition, beforePosition);
+  const position = await computePosition(req.body.status, afterPosition, beforePosition);
 
   const todo = await Todo.findOneAndUpdate(
     { _id: req.params.id, isDeleted: { $ne: true } },

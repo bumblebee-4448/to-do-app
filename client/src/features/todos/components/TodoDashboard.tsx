@@ -174,9 +174,7 @@ export const TodoDashboard = () => {
           {/* ── Topbar / Combined Header ───────────────────────── */}
           <DashboardTopbar
             isSidebarCollapsed={dashboard.isSidebarCollapsed}
-            theme={dashboard.theme}
             onOpenSidebar={dashboard.handleOpenSidebar}
-            onToggleTheme={dashboard.toggleTheme}
           />
 
           {/* ── View tabs + actions row ───────────────────────── */}

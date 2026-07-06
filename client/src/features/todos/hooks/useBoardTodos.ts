@@ -5,15 +5,33 @@ import type { TodoFilters, TodoStatus } from '../types';
 
 const boardStatuses: TodoStatus[] = ['pending', 'incomplete', 'completed'];
 
-export const useBoardTodos = (baseFilters: Omit<TodoFilters, 'status' | 'limit'>) => {
+type UseBoardTodosOptions = {
+  enabled?: boolean;
+  visibleStatus?: TodoStatus | '';
+};
+
+export const useBoardTodos = (
+  baseFilters: Omit<TodoFilters, 'status' | 'limit'>,
+  { enabled = true, visibleStatus = '' }: UseBoardTodosOptions = {},
+) => {
   const pendingPagination = usePagination({ initialPage: 1 });
   const incompletePagination = usePagination({ initialPage: 1 });
   const completedPagination = usePagination({ initialPage: 1 });
+  const canFetchStatus = (status: TodoStatus) => enabled && (!visibleStatus || visibleStatus === status);
 
   const queries = {
-    pending: useTodos({ ...baseFilters, status: 'pending', limit: 10, page: pendingPagination.page }),
-    incomplete: useTodos({ ...baseFilters, status: 'incomplete', limit: 10, page: incompletePagination.page }),
-    completed: useTodos({ ...baseFilters, status: 'completed', limit: 10, page: completedPagination.page }),
+    pending: useTodos(
+      { ...baseFilters, status: 'pending', limit: 10, page: pendingPagination.page },
+      { enabled: canFetchStatus('pending') },
+    ),
+    incomplete: useTodos(
+      { ...baseFilters, status: 'incomplete', limit: 10, page: incompletePagination.page },
+      { enabled: canFetchStatus('incomplete') },
+    ),
+    completed: useTodos(
+      { ...baseFilters, status: 'completed', limit: 10, page: completedPagination.page },
+      { enabled: canFetchStatus('completed') },
+    ),
   };
 
   const columns = useMemo(

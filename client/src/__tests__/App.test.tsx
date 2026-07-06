@@ -171,6 +171,35 @@ describe('Todo dashboard', () => {
     expect(screen.getByText('Buy groceries')).toBeInTheDocument();
   });
 
+  test('fetches only the active dashboard view data', async () => {
+    const { todosApi } = await import('../features/todos/api/todosApi');
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByText('Write React tests')).toBeInTheDocument();
+    expect(await screen.findByText('Buy groceries')).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(vi.mocked(todosApi.getTodos)).toHaveBeenCalledTimes(3);
+    });
+    expect(vi.mocked(todosApi.getTodos).mock.calls.map(([params]) => params.status)).toEqual([
+      'pending',
+      'incomplete',
+      'completed',
+    ]);
+
+    vi.mocked(todosApi.getTodos).mockClear();
+    await user.click(screen.getByRole('tab', { name: /danh sách/i }));
+
+    await waitFor(() => {
+      expect(vi.mocked(todosApi.getTodos)).toHaveBeenCalledWith(
+        expect.objectContaining({ status: '' }),
+      );
+    });
+    expect(vi.mocked(todosApi.getTodos).mock.calls).toHaveLength(1);
+  });
+
   test('renders todo-focused sidebar actions and feature menu', () => {
     render(<App />);
 

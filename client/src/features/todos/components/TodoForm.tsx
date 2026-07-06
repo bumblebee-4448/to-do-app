@@ -2,7 +2,7 @@ import { useEffect, type ReactElement } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { toInputDate } from '../../../utils/date';
-import { todoDefaults, todoSchema, type TodoFormValues } from '../schemas/todoSchema';
+import { todoDefaults, todoSchema, type TodoFormValues } from '../todoSchema';
 import type { Todo } from '../types';
 import { DatePicker } from '../../../components/ui/DatePicker';
 import { DialogTitle } from '../../../components/ui/Dialog';

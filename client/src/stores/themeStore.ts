@@ -1,7 +1,9 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
-type Theme = 'light' | 'dark';
+export type Theme = 'light' | 'dark';
+
+export const themeStorageKey = 'theme-storage';
 
 type ThemeState = {
   theme: Theme;
@@ -9,18 +11,37 @@ type ThemeState = {
   toggleTheme: () => void;
 };
 
+const applyThemeToDocument = (theme: Theme) => {
+  if (typeof document === 'undefined') return;
+
+  document.documentElement.classList.remove('light', 'dark');
+  document.documentElement.classList.add(theme);
+  document.documentElement.style.colorScheme = theme;
+};
+
 export const useThemeStore = create<ThemeState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       theme: 'light',
-      setTheme: (theme: Theme) => set({ theme }),
-      toggleTheme: () =>
-        set((state) => ({
-          theme: state.theme === 'light' ? 'dark' : 'light',
-        })),
+      setTheme: (theme: Theme) => {
+        applyThemeToDocument(theme);
+        set({ theme });
+      },
+      toggleTheme: () => {
+        const nextTheme = get().theme === 'light' ? 'dark' : 'light';
+
+        applyThemeToDocument(nextTheme);
+        set({ theme: nextTheme });
+      },
     }),
     {
-      name: 'app-theme-storage',
+      name: themeStorageKey,
+      storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: () => (state) => {
+        if (state?.theme) {
+          applyThemeToDocument(state.theme);
+        }
+      },
     },
   ),
 );

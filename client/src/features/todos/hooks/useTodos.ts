@@ -19,10 +19,18 @@ import type {
 
 const todosRootKey = ['todos'] as const;
 
-export const useTodos = (filters: TodoFilters & { page: number }) =>
+type UseTodosOptions = {
+  enabled?: boolean;
+};
+
+export const useTodos = (
+  filters: TodoFilters & { page: number },
+  options: UseTodosOptions = {},
+) =>
   useQuery<TodoListResponse, Error>({
     queryKey: ['todos', filters],
     queryFn: () => todosApi.getTodos(filters),
+    enabled: options.enabled ?? true,
     placeholderData: keepPreviousData,
   });
 
