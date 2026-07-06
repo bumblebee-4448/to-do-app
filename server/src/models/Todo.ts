@@ -15,21 +15,29 @@ const todoSchema = new Schema(
       maxlength: [500, 'Description cannot exceed 500 characters'],
       default: '',
     },
-    priority: {
-      type: String,
-      enum: ['low', 'medium', 'high'],
-      default: 'low',
-      index: true,
-    },
     dueDate: {
       type: Date,
       default: null,
     },
     status: {
       type: String,
-      enum: ['pending', 'completed'],
+      enum: ['pending', 'incomplete', 'completed'],
       default: 'pending',
       index: true,
+    },
+    position: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
     },
   },
   {
@@ -37,8 +45,12 @@ const todoSchema = new Schema(
   },
 );
 
+todoSchema.index({ isDeleted: 1, status: 1, position: 1, _id: 1 });
+todoSchema.index({ isDeleted: 1, status: 1, createdAt: -1, _id: -1 });
+todoSchema.index({ isDeleted: 1, dueDate: 1, _id: 1 });
+todoSchema.index({ title: 'text', description: 'text' });
+
 export type Todo = InferSchemaType<typeof todoSchema>;
-export type TodoPriority = Todo['priority'];
 export type TodoStatus = Todo['status'];
 
 export default model<Todo>('Todo', todoSchema);

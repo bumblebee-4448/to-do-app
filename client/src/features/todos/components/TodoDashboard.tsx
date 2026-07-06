@@ -1,179 +1,239 @@
-import { useMemo, useState } from 'react';
-import { Moon, Sun } from 'lucide-react';
-import { Button } from '../../../components/ui/Button';
-import { Card } from '../../../components/ui/Card';
-import { useDebounce } from '../../../hooks/useDebounce';
-import { useThemeStore } from '../../../stores/themeStore';
+import { useMemo, useRef } from 'react';
 import {
-  useCreateTodo,
-  useDeleteTodo,
-  usePatchTodo,
-  useTodos,
-  useUpdateTodo,
-} from '../hooks/useTodos';
-import { toTodoPayload, type TodoFormValues } from '../schemas/todoSchema';
-import type { Todo, TodoFilters as TodoFilterState, TodoOrder, TodoSortBy, TodoStatus } from '../types';
-import { TodoFilters } from './TodoFilters';
+  CircleCheck,
+  ListChecks,
+  Sparkles,
+} from 'lucide-react';
+import { Sidebar, type SidebarFeatureId } from '../../../components/ui/Sidebar';
+import { useTodoDashboard } from '../hooks/useTodoDashboard';
+import { KanbanColumn } from './KanbanColumn';
+import { DashboardFilters } from './DashboardFilters';
+import { DashboardTopbar } from './DashboardTopbar';
+import { DashboardViewTabs } from './DashboardViewTabs';
 import { TodoForm } from './TodoForm';
 import { TodoList } from './TodoList';
+import { ErrorBoundary } from '../../../components/ui/ErrorBoundary';
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../../../components/ui/AlertDialog';
+import {
+  Dialog,
+  DialogContent,
+} from '../../../components/ui/Dialog';
 
 export const TodoDashboard = () => {
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<TodoStatus | ''>('');
-  const [sortBy, setSortBy] = useState<TodoSortBy>('createdAt');
-  const [order, setOrder] = useState<TodoOrder>('desc');
-  const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
-  const [mutationMessage, setMutationMessage] = useState('');
-  const debouncedSearch = useDebounce(search);
-  const theme = useThemeStore((state) => state.theme);
-  const toggleTheme = useThemeStore((state) => state.toggleTheme);
+  const dashboard = useTodoDashboard();
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const filters = useMemo<TodoFilterState>(
-    () => ({
-      search: debouncedSearch,
-      status,
-      sortBy,
-      order,
-      limit: 8,
-    }),
-    [debouncedSearch, status, sortBy, order],
+  const activeSidebarFeature: SidebarFeatureId = useMemo(() => {
+    if (dashboard.view === 'list') {
+      return 'list';
+    }
+    return 'board';
+  }, [dashboard.view]);
+
+  const renderBoard = () => (
+    <section className="kanban-board">
+      {(!dashboard.status || dashboard.status === 'pending') && (
+        <KanbanColumn
+          column="list"
+          id="list-col"
+          title="Danh sách công việc"
+          icon={<ListChecks size={16} strokeWidth={2.5} style={{ color: '#a1a1aa' }} />}
+          todos={dashboard.board.columns.list}
+          isLoading={dashboard.board.queries.pending.isLoading}
+          isError={dashboard.board.queries.pending.isError}
+          error={dashboard.board.queries.pending.error}
+          enterClass="col-enter-1"
+          onDelete={dashboard.handleDelete}
+          onEdit={dashboard.handleOpenEdit}
+          onToggle={dashboard.handleToggle}
+          onDropTodo={dashboard.handleDropTodo}
+          onAddTask={() => dashboard.handleOpenCreate('list')}
+          pagination={{
+            page: dashboard.board.pages.pending,
+            totalPages: dashboard.board.queries.pending.data?.pagination?.totalPages ?? 1,
+            hasNextPage: Boolean(dashboard.board.queries.pending.data?.pagination?.hasNextPage),
+            hasPrevPage: Boolean(dashboard.board.queries.pending.data?.pagination?.hasPrevPage),
+            onPageChange: (nextPage) => dashboard.board.setColumnPage('pending', nextPage),
+          }}
+        />
+      )}
+
+      {(!dashboard.status || dashboard.status === 'incomplete') && (
+        <KanbanColumn
+          column="incomplete"
+          id="incomplete-col"
+          title="Chưa hoàn thành"
+          icon={<Sparkles size={16} style={{ color: '#f59e0b' }} />}
+          todos={dashboard.board.columns.incomplete}
+          isLoading={dashboard.board.queries.incomplete.isLoading}
+          isError={dashboard.board.queries.incomplete.isError}
+          error={dashboard.board.queries.incomplete.error}
+          enterClass="col-enter-2"
+          onDelete={dashboard.handleDelete}
+          onEdit={dashboard.handleOpenEdit}
+          onToggle={dashboard.handleToggle}
+          onDropTodo={dashboard.handleDropTodo}
+          onAddTask={() => dashboard.handleOpenCreate('incomplete')}
+          pagination={{
+            page: dashboard.board.pages.incomplete,
+            totalPages: dashboard.board.queries.incomplete.data?.pagination?.totalPages ?? 1,
+            hasNextPage: Boolean(dashboard.board.queries.incomplete.data?.pagination?.hasNextPage),
+            hasPrevPage: Boolean(dashboard.board.queries.incomplete.data?.pagination?.hasPrevPage),
+            onPageChange: (nextPage) => dashboard.board.setColumnPage('incomplete', nextPage),
+          }}
+        />
+      )}
+
+      {(!dashboard.status || dashboard.status === 'completed') && (
+        <KanbanColumn
+          column="done"
+          id="done-col"
+          title="Hoàn thành"
+          icon={<CircleCheck size={16} style={{ color: '#22c55e' }} />}
+          todos={dashboard.board.columns.done}
+          isLoading={dashboard.board.queries.completed.isLoading}
+          isError={dashboard.board.queries.completed.isError}
+          error={dashboard.board.queries.completed.error}
+          enterClass="col-enter-3"
+          onDelete={dashboard.handleDelete}
+          onEdit={dashboard.handleOpenEdit}
+          onToggle={dashboard.handleToggle}
+          onDropTodo={dashboard.handleDropTodo}
+          pagination={{
+            page: dashboard.board.pages.completed,
+            totalPages: dashboard.board.queries.completed.data?.pagination?.totalPages ?? 1,
+            hasNextPage: Boolean(dashboard.board.queries.completed.data?.pagination?.hasNextPage),
+            hasPrevPage: Boolean(dashboard.board.queries.completed.data?.pagination?.hasPrevPage),
+            onPageChange: (nextPage) => dashboard.board.setColumnPage('completed', nextPage),
+          }}
+        />
+      )}
+    </section>
   );
 
-  const todosQuery = useTodos(filters);
-  const createTodo = useCreateTodo();
-  const updateTodo = useUpdateTodo();
-  const patchTodo = usePatchTodo();
-  const deleteTodo = useDeleteTodo();
+  const renderList = () => (
+    <section className="dashboard-panel-view dashboard-panel-view--list">
+      <TodoList
+        error={dashboard.todosQuery.error}
+        page={dashboard.page}
+        totalPages={dashboard.totalPages}
+        hasNextPage={Boolean(dashboard.todosQuery.data?.pagination?.hasNextPage)}
+        hasPrevPage={Boolean(dashboard.todosQuery.data?.pagination?.hasPrevPage)}
+        isError={dashboard.todosQuery.isError}
+        isLoading={dashboard.todosQuery.isLoading}
+        todos={dashboard.todos}
+        onDelete={dashboard.handleDelete}
+        onEdit={dashboard.handleOpenEdit}
+        onPageChange={dashboard.setPage}
+        onToggle={dashboard.handleToggle}
+      />
+    </section>
+  );
 
-  const todos = todosQuery.data?.pages.flatMap((page) => page.data) || [];
-  const total = todosQuery.data?.pages[0]?.pagination?.total || 0;
-  const completed = todos.filter((todo) => todo.status === 'completed').length;
-  const open = Math.max(todos.length - completed, 0);
-  const isSaving = createTodo.isPending || updateTodo.isPending;
-
-  const handleMutationError = (error: Error) => {
-    setMutationMessage(error.message || 'The change could not be saved.');
-  };
-
-  const handleSubmit = (values: TodoFormValues) => {
-    setMutationMessage('');
-    const payload = toTodoPayload(values);
-
-    if (editingTodo) {
-      updateTodo.mutate(
-        { id: editingTodo._id, payload: { ...payload, status: editingTodo.status } },
-        {
-          onSuccess: () => setEditingTodo(null),
-          onError: handleMutationError,
-        },
-      );
-      return;
+  const renderContent = () => {
+    if (dashboard.view === 'list') {
+      return renderList();
     }
-
-    createTodo.mutate(payload, {
-      onSuccess: () => setMutationMessage('Task added.'),
-      onError: handleMutationError,
-    });
-  };
-
-  const handleToggle = (todo: Todo) => {
-    setMutationMessage('');
-    patchTodo.mutate(
-      {
-        id: todo._id,
-        payload: {
-          status: todo.status === 'completed' ? 'pending' : 'completed',
-        },
-      },
-      { onError: handleMutationError },
-    );
-  };
-
-  const handleDelete = (todo: Todo) => {
-    setMutationMessage('');
-    deleteTodo.mutate(todo._id, {
-      onError: handleMutationError,
-    });
+    return renderBoard();
   };
 
   return (
-    <main className="min-h-[100dvh] bg-[#F7F6F3] text-zinc-950 transition-colors duration-200 dark:bg-zinc-900 dark:text-zinc-50">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-        <header className="flex flex-col gap-4 border-b border-zinc-200 pb-5 dark:border-zinc-700 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="font-mono text-xs uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
-              Todo List
-            </p>
-            <h1 className="mt-2 text-4xl font-semibold tracking-normal text-zinc-950 dark:text-zinc-50 md:text-5xl">
-              Today's Work
-            </h1>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="grid grid-cols-3 divide-x divide-zinc-200 rounded-lg border border-zinc-200 bg-white text-center dark:divide-zinc-700 dark:border-zinc-700 dark:bg-zinc-800">
-              <Stat label="Total" value={total} />
-              <Stat label="Open" value={open} />
-              <Stat label="Done" value={completed} />
-            </div>
-            <Button
-              variant="secondary"
-              className="h-11 w-11 px-0"
-              aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-              onClick={toggleTheme}
-            >
-              {theme === 'light' ? <Moon size={18} aria-hidden="true" /> : <Sun size={18} aria-hidden="true" />}
-            </Button>
-          </div>
-        </header>
+    <ErrorBoundary>
+      <div
+        className={`app-shell app-shell--floating-sidebar app-shell--unified-surface shell-enter dashboard-enter ${
+          dashboard.isSidebarCollapsed ? 'app-shell--sidebar-collapsed' : ''
+        }`}
+      >
+        {/* Sidebar */}
+        <Sidebar 
+          isOpen={dashboard.isSidebarOpen}
+          onClose={() => dashboard.setIsSidebarOpen(false)}
+          onCreateTodo={() => dashboard.handleOpenCreate('list')}
+          onFocusSearch={() => searchInputRef.current?.focus()}
+          onSelectBoard={() => dashboard.showAllTasksInView('board')}
+          onSelectList={() => dashboard.showAllTasksInView('list')}
+          activeFeature={activeSidebarFeature}
+          isCollapsed={dashboard.isSidebarCollapsed}
+          onToggleCollapse={() => dashboard.setIsSidebarCollapsed(!dashboard.isSidebarCollapsed)}
+          className="sidebar-enter dashboard-enter__sidebar"
+        />
 
-        <section className="grid gap-6 lg:grid-cols-[minmax(280px,380px)_1fr]">
-          <div className="space-y-4">
+        {/* Main */}
+        <main className="main-content main-content--floating-sidebar main-content--plain-surface content-enter dashboard-enter__main">
+
+          {/* ── Topbar / Combined Header ───────────────────────── */}
+          <DashboardTopbar
+            isSidebarCollapsed={dashboard.isSidebarCollapsed}
+            theme={dashboard.theme}
+            onOpenSidebar={dashboard.handleOpenSidebar}
+            onToggleTheme={dashboard.toggleTheme}
+          />
+
+          {/* ── View tabs + actions row ───────────────────────── */}
+          <div className="dashboard-actions-row">
+            <DashboardViewTabs view={dashboard.view} onViewChange={dashboard.setView} />
+            <DashboardFilters
+              isOpen={dashboard.isFilterOpen}
+              search={dashboard.search}
+              searchInputRef={searchInputRef}
+              sortBy={dashboard.sortBy}
+              status={dashboard.status}
+              onAddTodo={() => dashboard.handleOpenCreate('list')}
+              onSearchChange={dashboard.handleSearchChange}
+              onSortByChange={dashboard.handleSortByChange}
+              onStatusChange={dashboard.handleStatusChange}
+              onToggleFilters={() => dashboard.setIsFilterOpen(!dashboard.isFilterOpen)}
+            />
+          </div>
+
+          <section
+            className={`dashboard-content dashboard-content--${dashboard.view} dashboard-enter__content`}
+            aria-label="Nội dung dashboard"
+            data-view={dashboard.view}
+          >
+            {renderContent()}
+          </section>
+        </main>
+
+        {/* ── Confirm Delete Dialog ─────────────────────────── */}
+        <AlertDialog open={!!dashboard.todoToDelete} onOpenChange={(open) => !open && dashboard.setTodoToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Bạn có chắc chắn muốn xóa?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Hành động này không thể hoàn tác. Công việc "{dashboard.todoToDelete?.title}" sẽ bị xóa vĩnh viễn khỏi danh sách.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Hủy</AlertDialogCancel>
+              <AlertDialogAction onClick={dashboard.handleConfirmDelete}>Xóa</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* ── Task Modal ─────────────────────────────────────── */}
+        <Dialog open={dashboard.isFormOpen} onOpenChange={dashboard.setIsFormOpen}>
+          <DialogContent aria-describedby={undefined}>
             <TodoForm
-              editingTodo={editingTodo}
-              isSaving={isSaving}
-              onCancelEdit={() => setEditingTodo(null)}
-              onSubmit={handleSubmit}
+              editingTodo={dashboard.editingTodo}
+              isSaving={dashboard.createTodo.isPending || dashboard.updateTodo.isPending}
+              onCancelEdit={() => dashboard.setIsFormOpen(false)}
+              onSubmit={dashboard.handleSubmit}
             />
-            {mutationMessage ? (
-              <p className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                {mutationMessage}
-              </p>
-            ) : null}
-          </div>
-
-          <Card className="p-4 sm:p-5">
-            <TodoFilters
-              order={order}
-              search={search}
-              sortBy={sortBy}
-              status={status}
-              onOrderChange={setOrder}
-              onSearchChange={setSearch}
-              onSortByChange={setSortBy}
-              onStatusChange={setStatus}
-            />
-            <TodoList
-              error={todosQuery.error ?? null}
-              hasNextPage={Boolean(todosQuery.hasNextPage)}
-              isError={todosQuery.isError}
-              isFetchingNextPage={todosQuery.isFetchingNextPage}
-              isLoading={todosQuery.isLoading}
-              todos={todos}
-              onDelete={handleDelete}
-              onEdit={setEditingTodo}
-              onFetchNextPage={todosQuery.fetchNextPage}
-              onToggle={handleToggle}
-            />
-          </Card>
-        </section>
+          </DialogContent>
+        </Dialog>
       </div>
-    </main>
+    </ErrorBoundary>
   );
 };
-
-const Stat = ({ label, value }: { label: string; value: number }) => (
-  <div className="min-w-20 px-3 py-2">
-    <p className="font-mono text-lg font-semibold leading-none">{value}</p>
-    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{label}</p>
-  </div>
-);
+export default TodoDashboard;

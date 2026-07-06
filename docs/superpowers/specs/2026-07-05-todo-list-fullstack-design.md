@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Build a complete full-stack Todo List application from the existing README specification. The product should let users manage daily tasks through a responsive, polished, utilitarian interface backed by a RESTful Express API and MongoDB persistence.
+Build a complete full-stack Todo List application from the existing README specification. The product should let users manage daily tasks through a responsive, polished, utilitarian TypeScript interface backed by a TypeScript RESTful Express API and MongoDB persistence.
 
 ## Scope
 
@@ -23,10 +23,10 @@ The app will not include authentication, multi-user ownership, Docker, deploymen
 
 ## Architecture
 
-The repository will become a two-package monorepo:
+The repository is a two-package monorepo using TypeScript end to end and current latest package versions at implementation time:
 
-- `server/`: Node.js, Express, MongoDB, Mongoose, express-validator, Jest, Supertest, and mongodb-memory-server.
-- `client/`: Vite, React, React Router, React Query, Axios, Zustand, React Hook Form, Zod, Tailwind CSS, shadcn-style local UI components, Vitest, and React Testing Library.
+- `server/`: Node.js, Express 5, TypeScript, MongoDB, Mongoose 9, express-validator, Jest 30, Supertest, and mongodb-memory-server.
+- `client/`: Vite 8, React 19, TypeScript, React Router 7, React Query 5, Axios, Zustand 5, React Hook Form, Zod 4, Tailwind CSS 4, shadcn-style local UI components, Vitest 4, and React Testing Library.
 
 The backend owns persistence, validation, REST status codes, response shape, and pagination metadata. The frontend owns interaction state, form state, server cache state, theme persistence, and user-facing presentation.
 
@@ -90,17 +90,18 @@ Error responses use:
 
 ### Backend Modules
 
-- `src/app.js`: create and configure the Express app.
-- `src/server.js`: connect to MongoDB and start listening.
-- `src/config/db.js`: database connection helper.
-- `src/models/Todo.js`: Mongoose schema and model.
-- `src/controllers/todoController.js`: route handlers.
-- `src/routes/todoRoutes.js`: route definitions.
-- `src/validations/todoValidation.js`: express-validator rules.
-- `src/middlewares/validateRequest.js`: convert validation errors into JSON responses.
-- `src/middlewares/errorHandler.js`: centralized error response middleware.
-- `src/middlewares/notFound.js`: 404 route fallback.
-- `src/__tests__/todos.test.js`: API tests.
+- `src/app.ts`: create and configure the Express app.
+- `src/server.ts`: connect to MongoDB and start listening.
+- `src/config/db.ts`: database connection helper.
+- `src/models/Todo.ts`: typed Mongoose schema and model.
+- `src/controllers/todoController.ts`: typed route handlers.
+- `src/routes/todoRoutes.ts`: route definitions.
+- `src/validations/todoValidation.ts`: express-validator rules.
+- `src/middlewares/asyncHandler.ts`: async controller wrapper.
+- `src/middlewares/validateRequest.ts`: convert validation errors into JSON responses.
+- `src/middlewares/errorHandler.ts`: centralized error response middleware.
+- `src/middlewares/notFound.ts`: 404 route fallback.
+- `src/__tests__/todos.test.ts`: API tests.
 
 ## Frontend Design
 
@@ -133,22 +134,24 @@ Mutations will optimistically update the cache for create, edit, toggle, and del
 
 ### Frontend Modules
 
-- `src/main.jsx`: React root, providers, and global CSS import.
-- `src/App.jsx`: application shell.
-- `src/config/api.js`: Axios instance and response handling.
-- `src/config/queryClient.js`: React Query client.
-- `src/stores/themeStore.js`: Zustand persisted theme state.
-- `src/hooks/useDebounce.js`: debounced search input helper.
-- `src/features/todos/api/todosApi.js`: Todo API functions.
-- `src/features/todos/hooks/useTodos.js`: query and mutation hooks.
-- `src/features/todos/schemas/todoSchema.js`: Zod form schema.
-- `src/features/todos/components/TodoDashboard.jsx`: feature container.
-- `src/features/todos/components/TodoForm.jsx`: create/edit form.
-- `src/features/todos/components/TodoFilters.jsx`: search, filter, and sort controls.
-- `src/features/todos/components/TodoList.jsx`: list rendering and load-more control.
-- `src/features/todos/components/TodoItem.jsx`: todo card interactions.
+- `src/main.tsx`: React root, providers, and global CSS import.
+- `src/App.tsx`: application shell.
+- `src/config/api.ts`: typed Axios instance and response handling.
+- `src/config/queryClient.ts`: React Query client.
+- `src/stores/themeStore.ts`: Zustand persisted theme state.
+- `src/hooks/useDebounce.ts`: debounced search input helper.
+- `src/features/todos/api/todosApi.ts`: typed Todo API functions.
+- `src/features/todos/hooks/useTodos.ts`: query and mutation hooks.
+- `src/features/todos/schemas/todoSchema.ts`: Zod form schema.
+- `src/features/todos/types.ts`: Todo domain types and API contracts.
+- `src/features/todos/components/TodoDashboard.tsx`: feature container.
+- `src/features/todos/components/TodoForm.tsx`: create/edit form.
+- `src/features/todos/components/TodoFilters.tsx`: search, filter, and sort controls.
+- `src/features/todos/components/TodoList.tsx`: list rendering and load-more control.
+- `src/features/todos/components/TodoItem.tsx`: todo card interactions.
 - `src/components/ui/*`: local shadcn-style primitives such as Button, Input, Textarea, Select, Badge, Card, and Checkbox.
-- `src/__tests__/App.test.jsx`: frontend behavior tests.
+- `src/__tests__/App.test.tsx`: frontend behavior tests.
+- `vite.config.ts`: Vite, React, Tailwind 4, and Vitest configuration.
 
 ## Validation
 
@@ -203,16 +206,21 @@ Frontend tests with Vitest and React Testing Library will cover:
 The completed project should support:
 
 - `cd server && npm install && npm test`
+- `cd server && npm run typecheck`
+- `cd server && npm run build`
+- `cd server && npm audit`
 - `cd server && npm run dev`
 - `cd client && npm install && npm test`
+- `cd client && npm run typecheck`
 - `cd client && npm run build`
+- `cd client && npm audit`
 - `cd client && npm run dev`
 
 Local defaults:
 
 - Backend: `http://localhost:5000`
 - API base path: `http://localhost:5000/api/v1`
-- Frontend: Vite development server, usually `http://localhost:5173`
+- Frontend: Vite development server at `http://localhost:3000`
 
 ## Acceptance Criteria
 
@@ -227,5 +235,7 @@ The implementation is complete when:
 - Light and dark theme persist across reloads.
 - Optimistic UI updates roll back after failed mutations.
 - Backend tests pass.
+- Backend TypeScript typecheck and production build pass.
 - Frontend tests pass.
+- Frontend TypeScript typecheck passes.
 - Frontend production build succeeds.

@@ -1,15 +1,11 @@
 import { useEffect, type ReactElement } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X } from 'lucide-react';
-import { useForm } from 'react-hook-form';
-import { Button } from '../../../components/ui/Button';
-import { Card } from '../../../components/ui/Card';
-import { Input } from '../../../components/ui/Input';
-import { Select } from '../../../components/ui/Select';
-import { Textarea } from '../../../components/ui/Textarea';
+import { Controller, useForm } from 'react-hook-form';
 import { toInputDate } from '../../../utils/date';
 import { todoDefaults, todoSchema, type TodoFormValues } from '../schemas/todoSchema';
 import type { Todo } from '../types';
+import { DatePicker } from '../../../components/ui/DatePicker';
+import { DialogTitle } from '../../../components/ui/Dialog';
 
 type TodoFormProps = {
   editingTodo: Todo | null;
@@ -20,6 +16,7 @@ type TodoFormProps = {
 
 export const TodoForm = ({ editingTodo, isSaving, onCancelEdit, onSubmit }: TodoFormProps) => {
   const {
+    control,
     formState: { errors },
     handleSubmit,
     register,
@@ -34,7 +31,6 @@ export const TodoForm = ({ editingTodo, isSaving, onCancelEdit, onSubmit }: Todo
       reset({
         title: editingTodo.title,
         description: editingTodo.description || '',
-        priority: editingTodo.priority,
         dueDate: toInputDate(editingTodo.dueDate),
       });
       return;
@@ -51,61 +47,78 @@ export const TodoForm = ({ editingTodo, isSaving, onCancelEdit, onSubmit }: Todo
   };
 
   return (
-    <Card className="p-4 sm:p-5">
-      <div className="mb-4 flex items-start justify-between gap-3">
+    <div style={{ background: 'var(--bg-surface)' }}>
+      {/* Modal Header */}
+      <div className="modal-header">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
-            {editingTodo ? 'Edit task' : 'Add task'}
-          </h2>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Keep the task clear, dated, and easy to finish.
+          <DialogTitle asChild>
+            <h2 className="modal-title">
+              {editingTodo ? 'Chỉnh sửa công việc' : 'Thêm công việc'}
+            </h2>
+          </DialogTitle>
+          <p style={{ marginTop: 2, fontSize: 12, color: 'var(--text-tertiary)' }}>
+            Hãy giữ cho công việc rõ ràng, có thời hạn và dễ hoàn thành.
           </p>
         </div>
-        {editingTodo ? (
-          <Button
-            variant="ghost"
-            className="h-9 w-9 px-0"
-            aria-label="Cancel editing"
-            title="Cancel editing"
-            onClick={onCancelEdit}
-          >
-            <X size={16} aria-hidden="true" />
-          </Button>
-        ) : null}
       </div>
 
-      <form className="space-y-4" onSubmit={handleSubmit(submit)}>
-        <Field label="Title" error={errors.title?.message}>
-          <Input id="title" placeholder="Draft project notes" {...register('title')} />
-        </Field>
-
-        <Field label="Description" error={errors.description?.message}>
-          <Textarea
-            id="description"
-            placeholder="Add the context that future you will need."
-            {...register('description')}
-          />
-        </Field>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Priority" error={errors.priority?.message}>
-            <Select id="priority" {...register('priority')}>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </Select>
+      {/* Modal Body */}
+      <form onSubmit={handleSubmit(submit)}>
+        <div className="modal-body">
+          <Field label="Tiêu đề" error={errors.title?.message}>
+            <input
+              id="title"
+              type="text"
+              placeholder="vd: Nghiên cứu xu hướng trang web"
+              className="input"
+              {...register('title')}
+            />
           </Field>
 
-          <Field label="Due date" error={errors.dueDate?.message}>
-            <Input id="dueDate" type="date" {...register('dueDate')} />
+          <Field label="Mô tả" error={errors.description?.message}>
+            <textarea
+              id="description"
+              placeholder="Thêm chi tiết, liên kết hoặc ngữ cảnh..."
+              className="input textarea"
+              {...register('description')}
+            />
+          </Field>
+
+          <Field label="Hạn chót" error={errors.dueDate?.message}>
+            <Controller
+              control={control}
+              name="dueDate"
+              render={({ field }) => (
+                <DatePicker
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Chọn hạn chót"
+                />
+              )}
+            />
           </Field>
         </div>
 
-        <Button type="submit" className="w-full" disabled={isSaving}>
-          {editingTodo ? 'Save changes' : 'Add task'}
-        </Button>
+        {/* Modal Footer */}
+        <div className="modal-footer">
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={onCancelEdit}
+            disabled={isSaving}
+          >
+            Hủy
+          </button>
+          <button
+            type="submit"
+            className="btn btn--primary"
+            disabled={isSaving}
+          >
+            {isSaving ? 'Đang lưu...' : editingTodo ? 'Lưu thay đổi' : 'Thêm công việc'}
+          </button>
+        </div>
       </form>
-    </Card>
+    </div>
   );
 };
 
@@ -116,13 +129,13 @@ const Field = ({
 }: {
   label: string;
   error?: string;
-  children: ReactElement<{ id: string }>;
+  children: ReactElement<{ id: string; className?: string }>;
 }) => (
-  <div>
-    <label className="mb-1.5 block text-sm font-medium text-zinc-800 dark:text-zinc-200" htmlFor={children.props.id}>
+  <div className="field">
+    <label className="field__label" htmlFor={children.props.id}>
       {label}
     </label>
     {children}
-    {error ? <p className="mt-1.5 text-sm text-red-700 dark:text-red-300">{error}</p> : null}
+    {error ? <p className="field__error">{error}</p> : null}
   </div>
 );

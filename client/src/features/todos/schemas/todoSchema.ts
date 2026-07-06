@@ -11,15 +11,15 @@ export const todoSchema = z.object({
   title: z
     .string()
     .trim()
-    .min(3, 'Title must be at least 3 characters')
-    .max(100, 'Title cannot exceed 100 characters'),
+    .min(3, 'Tiêu đề phải có ít nhất 3 ký tự')
+    .max(100, 'Tiêu đề không được vượt quá 100 ký tự'),
   description: z
     .string()
     .trim()
-    .max(500, 'Description cannot exceed 500 characters')
+    .max(500, 'Mô tả không được vượt quá 500 ký tự')
     .optional()
     .or(z.literal('')),
-  priority: z.enum(['low', 'medium', 'high']),
+
   dueDate: z
     .string()
     .optional()
@@ -27,7 +27,7 @@ export const todoSchema = z.object({
     .refine((value) => {
       if (!value) return true;
       return new Date(`${value}T00:00:00`) >= todayAtMidnight();
-    }, 'Due date cannot be in the past'),
+    }, 'Hạn chót không được ở quá khứ'),
 });
 
 export type TodoFormValues = z.infer<typeof todoSchema>;
@@ -35,13 +35,11 @@ export type TodoFormValues = z.infer<typeof todoSchema>;
 export const todoDefaults: TodoFormValues = {
   title: '',
   description: '',
-  priority: 'low',
   dueDate: '',
 };
 
 export const toTodoPayload = (values: TodoFormValues): TodoCreatePayload => ({
   title: values.title.trim(),
   description: values.description?.trim() || '',
-  priority: values.priority,
-  dueDate: values.dueDate ? new Date(`${values.dueDate}T12:00:00`).toISOString() : undefined,
+  dueDate: values.dueDate ? new Date(`${values.dueDate}T12:00:00`).toISOString() : null,
 });

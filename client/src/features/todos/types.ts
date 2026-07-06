@@ -1,15 +1,14 @@
-export type TodoPriority = 'low' | 'medium' | 'high';
-export type TodoStatus = 'pending' | 'completed';
-export type TodoSortBy = 'createdAt' | 'dueDate' | 'priority' | 'title';
+export type TodoStatus = 'pending' | 'incomplete' | 'completed';
+export type TodoSortBy = 'createdAt' | 'dueDate' | 'title' | 'position';
 export type TodoOrder = 'asc' | 'desc';
 
 export interface Todo {
   _id: string;
   title: string;
   description: string;
-  priority: TodoPriority;
   status: TodoStatus;
   dueDate?: string | null;
+  position?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -43,8 +42,8 @@ export interface TodoFilters {
 export type TodoCreatePayload = {
   title: string;
   description: string;
-  priority: TodoPriority;
-  dueDate?: string;
+  dueDate?: string | null;
+  status?: TodoStatus;
 };
 
 export type TodoUpdatePayload = TodoCreatePayload & {
@@ -52,3 +51,9 @@ export type TodoUpdatePayload = TodoCreatePayload & {
 };
 
 export type TodoPatchPayload = Partial<TodoUpdatePayload>;
+
+export type TodoMovePayload = {
+  status: TodoStatus;
+  beforeId?: string | null;
+  afterId?: string | null;
+};

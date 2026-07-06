@@ -1,9 +1,9 @@
 import {
-  type InfiniteData,
-  type QueryClient,
-  useInfiniteQuery,
   useMutation,
+  useQuery,
   useQueryClient,
+  keepPreviousData,
+  type QueryKey,
 } from '@tanstack/react-query';
 import { todosApi } from '../api/todosApi';
 import type {
@@ -12,116 +12,25 @@ import type {
   TodoCreatePayload,
   TodoFilters,
   TodoListResponse,
+  TodoMovePayload,
   TodoPatchPayload,
   TodoUpdatePayload,
 } from '../types';
 
 const todosRootKey = ['todos'] as const;
-type TodosQueryKey = ['todos', TodoFilters];
-type TodosInfiniteData = InfiniteData<TodoListResponse, number>;
-type CacheSnapshot = Array<[readonly unknown[], TodosInfiniteData | undefined]>;
-type MutationContext = { previous: CacheSnapshot };
 
-const snapshotTodos = (queryClient: QueryClient): CacheSnapshot =>
-  queryClient.getQueriesData<TodosInfiniteData>({ queryKey: todosRootKey });
-
-const restoreTodos = (queryClient: QueryClient, snapshot: CacheSnapshot = []) => {
-  snapshot.forEach(([queryKey, data]) => queryClient.setQueryData(queryKey, data));
-};
-
-const mapInfiniteTodos = (
-  data: TodosInfiniteData | undefined,
-  mapper: (todo: Todo) => Todo,
-): TodosInfiniteData | undefined => {
-  if (!data?.pages) return data;
-  return {
-    ...data,
-    pages: data.pages.map((page) => ({
-      ...page,
-      data: page.data.map(mapper),
-    })),
-  };
-};
-
-const filterInfiniteTodos = (
-  data: TodosInfiniteData | undefined,
-  predicate: (todo: Todo) => boolean,
-): TodosInfiniteData | undefined => {
-  if (!data?.pages) return data;
-  return {
-    ...data,
-    pages: data.pages.map((page) => ({
-      ...page,
-      data: page.data.filter(predicate),
-      pagination: {
-        ...page.pagination,
-        total: Math.max((page.pagination?.total || 1) - 1, 0),
-      },
-    })),
-  };
-};
-
-const prependInfiniteTodo = (
-  data: TodosInfiniteData | undefined,
-  todo: Todo,
-): TodosInfiniteData | undefined => {
-  if (!data?.pages?.length) return data;
-  const [firstPage, ...rest] = data.pages;
-  return {
-    ...data,
-    pages: [
-      {
-        ...firstPage,
-        data: [todo, ...firstPage.data],
-        pagination: {
-          ...firstPage.pagination,
-          total: (firstPage.pagination?.total || 0) + 1,
-        },
-      },
-      ...rest,
-    ],
-  };
-};
-
-export const useTodos = (filters: TodoFilters) =>
-  useInfiniteQuery<TodoListResponse, Error, TodosInfiniteData, TodosQueryKey, number>({
+export const useTodos = (filters: TodoFilters & { page: number }) =>
+  useQuery<TodoListResponse, Error>({
     queryKey: ['todos', filters],
-    queryFn: ({ pageParam = 1 }) =>
-      todosApi.getTodos({
-        ...filters,
-        page: pageParam,
-      }),
-    initialPageParam: 1,
-    getNextPageParam: (lastPage) =>
-      lastPage.pagination?.hasNextPage ? lastPage.pagination.page + 1 : undefined,
+    queryFn: () => todosApi.getTodos(filters),
+    placeholderData: keepPreviousData,
   });
 
 export const useCreateTodo = () => {
   const queryClient = useQueryClient();
 
-  return useMutation<ApiSuccess<Todo>, Error, TodoCreatePayload, MutationContext>({
+  return useMutation<ApiSuccess<Todo>, Error, TodoCreatePayload>({
     mutationFn: (payload) => todosApi.createTodo(payload),
-    onMutate: async (payload) => {
-      await queryClient.cancelQueries({ queryKey: todosRootKey });
-      const previous = snapshotTodos(queryClient);
-      const now = new Date().toISOString();
-      const optimisticTodo = {
-        _id: `optimistic-${now}`,
-        title: payload.title,
-        description: payload.description || '',
-        priority: payload.priority || 'low',
-        dueDate: payload.dueDate || null,
-        status: 'pending' as const,
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      queryClient.setQueriesData<TodosInfiniteData>({ queryKey: todosRootKey }, (data) =>
-        prependInfiniteTodo(data, optimisticTodo),
-      );
-      return { previous };
-    },
-    onError: (error, payload, context) => restoreTodos(queryClient, context?.previous),
     onSettled: () => queryClient.invalidateQueries({ queryKey: todosRootKey }),
   });
 };
@@ -132,19 +41,9 @@ export const useUpdateTodo = () => {
   return useMutation<
     ApiSuccess<Todo>,
     Error,
-    { id: string; payload: TodoUpdatePayload },
-    MutationContext
+    { id: string; payload: TodoUpdatePayload }
   >({
     mutationFn: ({ id, payload }) => todosApi.updateTodo(id, payload),
-    onMutate: async ({ id, payload }) => {
-      await queryClient.cancelQueries({ queryKey: todosRootKey });
-      const previous = snapshotTodos(queryClient);
-      queryClient.setQueriesData<TodosInfiniteData>({ queryKey: todosRootKey }, (data) =>
-        mapInfiniteTodos(data, (todo) => (todo._id === id ? { ...todo, ...payload } : todo)),
-      );
-      return { previous };
-    },
-    onError: (error, variables, context) => restoreTodos(queryClient, context?.previous),
     onSettled: () => queryClient.invalidateQueries({ queryKey: todosRootKey }),
   });
 };
@@ -156,36 +55,204 @@ export const usePatchTodo = () => {
     ApiSuccess<Todo>,
     Error,
     { id: string; payload: TodoPatchPayload },
-    MutationContext
+    { previousTodosQueries: [QueryKey, TodoListResponse | undefined][] }
   >({
     mutationFn: ({ id, payload }) => todosApi.patchTodo(id, payload),
     onMutate: async ({ id, payload }) => {
       await queryClient.cancelQueries({ queryKey: todosRootKey });
-      const previous = snapshotTodos(queryClient);
-      queryClient.setQueriesData<TodosInfiniteData>({ queryKey: todosRootKey }, (data) =>
-        mapInfiniteTodos(data, (todo) => (todo._id === id ? { ...todo, ...payload } : todo)),
+
+      const previousTodosQueries = queryClient.getQueriesData<TodoListResponse>({
+        queryKey: todosRootKey,
+      });
+
+      queryClient.setQueriesData<TodoListResponse>(
+        { queryKey: todosRootKey },
+        (oldData) => {
+          if (!oldData) return oldData;
+          return {
+            ...oldData,
+            data: oldData.data.map((todo) =>
+              todo._id === id ? { ...todo, ...payload } : todo
+            ),
+          };
+        }
       );
-      return { previous };
+
+      return { previousTodosQueries };
     },
-    onError: (error, variables, context) => restoreTodos(queryClient, context?.previous),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: todosRootKey }),
+    onError: (_err, _variables, context) => {
+      if (context?.previousTodosQueries) {
+        context.previousTodosQueries.forEach(([queryKey, value]) => {
+          queryClient.setQueryData(queryKey, value);
+        });
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: todosRootKey });
+    },
+  });
+};
+
+export const useMoveTodo = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    ApiSuccess<Todo>,
+    Error,
+    { id: string; payload: TodoMovePayload },
+    { previousTodosQueries: [QueryKey, TodoListResponse | undefined][] }
+  >({
+    mutationFn: ({ id, payload }) => todosApi.moveTodo(id, payload),
+    onMutate: async ({ id, payload }) => {
+      await queryClient.cancelQueries({ queryKey: todosRootKey });
+
+      const previousTodosQueries = queryClient.getQueriesData<TodoListResponse>({
+        queryKey: todosRootKey,
+      });
+
+      let todoToMove: Todo | undefined;
+      for (const [, response] of previousTodosQueries) {
+        const found = response?.data?.find((t) => t._id === id);
+        if (found) {
+          todoToMove = found;
+          break;
+        }
+      }
+
+      if (todoToMove) {
+        const oldStatus = todoToMove.status;
+        const newStatus = payload.status;
+
+        const queries = queryClient.getQueryCache().findAll({ queryKey: todosRootKey });
+
+        for (const query of queries) {
+          const queryFilters = query.queryKey[1] as TodoFilters & { page?: number } | undefined;
+          const queryStatus = queryFilters?.status;
+
+          queryClient.setQueryData<TodoListResponse>(
+            query.queryKey,
+            (oldQueryData) => {
+              if (!oldQueryData) return oldQueryData;
+
+              if (queryStatus === oldStatus) {
+                return {
+                  ...oldQueryData,
+                  data: oldQueryData.data.filter((t) => t._id !== id),
+                  pagination: {
+                    ...oldQueryData.pagination,
+                    total: Math.max(0, oldQueryData.pagination.total - 1),
+                  },
+                };
+              }
+
+              if (queryStatus === newStatus) {
+                const alreadyExists = oldQueryData.data.some((t) => t._id === id);
+                if (alreadyExists) return oldQueryData;
+
+                const newList = [...oldQueryData.data];
+                const movedItem = { ...todoToMove, status: newStatus };
+
+                if (payload.beforeId) {
+                  const idx = newList.findIndex((t) => t._id === payload.beforeId);
+                  if (idx !== -1) {
+                    newList.splice(idx, 0, movedItem);
+                  } else {
+                    newList.push(movedItem);
+                  }
+                } else if (payload.afterId) {
+                  const idx = newList.findIndex((t) => t._id === payload.afterId);
+                  if (idx !== -1) {
+                    newList.splice(idx + 1, 0, movedItem);
+                  } else {
+                    newList.push(movedItem);
+                  }
+                } else {
+                  newList.push(movedItem);
+                }
+
+                return {
+                  ...oldQueryData,
+                  data: newList,
+                  pagination: {
+                    ...oldQueryData.pagination,
+                    total: oldQueryData.pagination.total + 1,
+                  },
+                };
+              }
+
+              if (queryStatus === '' || queryStatus === undefined) {
+                return {
+                  ...oldQueryData,
+                  data: oldQueryData.data.map((t) =>
+                    t._id === id ? { ...t, status: newStatus } : t
+                  ),
+                };
+              }
+
+              return oldQueryData;
+            }
+          );
+        }
+      }
+
+      return { previousTodosQueries };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousTodosQueries) {
+        context.previousTodosQueries.forEach(([queryKey, value]) => {
+          queryClient.setQueryData(queryKey, value);
+        });
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: todosRootKey });
+    },
   });
 };
 
 export const useDeleteTodo = () => {
   const queryClient = useQueryClient();
 
-  return useMutation<void, Error, string, MutationContext>({
+  return useMutation<
+    void,
+    Error,
+    string,
+    { previousTodosQueries: [QueryKey, TodoListResponse | undefined][] }
+  >({
     mutationFn: (id) => todosApi.deleteTodo(id),
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: todosRootKey });
-      const previous = snapshotTodos(queryClient);
-      queryClient.setQueriesData<TodosInfiniteData>({ queryKey: todosRootKey }, (data) =>
-        filterInfiniteTodos(data, (todo) => todo._id !== id),
+
+      const previousTodosQueries = queryClient.getQueriesData<TodoListResponse>({
+        queryKey: todosRootKey,
+      });
+
+      queryClient.setQueriesData<TodoListResponse>(
+        { queryKey: todosRootKey },
+        (oldData) => {
+          if (!oldData) return oldData;
+          return {
+            ...oldData,
+            data: oldData.data.filter((todo) => todo._id !== id),
+            pagination: {
+              ...oldData.pagination,
+              total: Math.max(0, oldData.pagination.total - 1),
+            },
+          };
+        }
       );
-      return { previous };
+
+      return { previousTodosQueries };
     },
-    onError: (error, id, context) => restoreTodos(queryClient, context?.previous),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: todosRootKey }),
+    onError: (_err, _variables, context) => {
+      if (context?.previousTodosQueries) {
+        context.previousTodosQueries.forEach(([queryKey, value]) => {
+          queryClient.setQueryData(queryKey, value);
+        });
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: todosRootKey });
+    },
   });
 };

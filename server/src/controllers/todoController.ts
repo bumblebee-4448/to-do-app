@@ -1,12 +1,11 @@
 import type { Request, Response } from 'express';
 import { Types } from 'mongoose';
-import Todo, { type Todo as TodoShape, type TodoPriority, type TodoStatus } from '../models/Todo';
+import Todo, { type Todo as TodoShape, type TodoStatus } from '../models/Todo';
 import type { AppError } from '../middlewares/errorHandler';
 
 type EditableTodoPayload = Partial<{
   title: string;
   description: string;
-  priority: TodoPriority;
   dueDate: Date | string | null;
   status: TodoStatus;
 }>;
@@ -16,7 +15,7 @@ type TodoListQuery = {
   limit?: string | number;
   search?: string;
   status?: TodoStatus;
-  sortBy?: 'createdAt' | 'updatedAt' | 'dueDate' | 'priority' | 'title';
+  sortBy?: 'createdAt' | 'updatedAt' | 'dueDate' | 'title' | 'position';
   order?: 'asc' | 'desc';
 };
 
@@ -24,7 +23,7 @@ type TodoFilter = Partial<Pick<TodoShape, 'status'>> & {
   $or?: Array<{ title: RegExp } | { description: RegExp }>;
 };
 
-const editableFields = ['title', 'description', 'priority', 'dueDate', 'status'] as const;
+const editableFields = ['title', 'description', 'dueDate', 'status'] as const;
 
 const createError = (statusCode: number, message: string): AppError => {
   const error = new Error(message) as AppError;
@@ -49,7 +48,7 @@ const findTodoOrFail = async (id: string) => {
     throw createError(404, 'Todo not found');
   }
 
-  const todo = await Todo.findById(id);
+  const todo = await Todo.findOne({ _id: id, isDeleted: { $ne: true } });
 
   if (!todo) {
     throw createError(404, 'Todo not found');
@@ -63,7 +62,7 @@ const getTodos = async (req: Request<object, object, object, TodoListQuery>, res
   const limit = Number(req.query.limit) || 10;
   const sortBy = req.query.sortBy || 'createdAt';
   const order = req.query.order === 'asc' ? 1 : -1;
-  const filter: TodoFilter = {};
+  const filter: TodoFilter & { isDeleted?: { $ne: boolean } } = { isDeleted: { $ne: true } };
 
   if (req.query.status) {
     filter.status = req.query.status;
@@ -75,7 +74,7 @@ const getTodos = async (req: Request<object, object, object, TodoListQuery>, res
   }
 
   const total = await Todo.countDocuments(filter);
-  const totalPages = Math.ceil(total / limit);
+  const totalPages = Math.max(Math.ceil(total / limit), 1);
   const todos = await Todo.find(filter)
     .sort({ [sortBy]: order, _id: order })
     .skip((page - 1) * limit)
@@ -114,13 +113,24 @@ const createTodo = async (req: Request<object, object, EditableTodoPayload>, res
   });
 };
 
-const updateTodo = async (req: Request<{ id: string }, object, EditableTodoPayload>, res: Response) => {
-  await findTodoOrFail(req.params.id);
 
-  const todo = await Todo.findByIdAndUpdate(req.params.id, pickEditableFields(req.body), {
-    returnDocument: 'after',
-    runValidators: true,
-  });
+const patchTodo = async (req: Request<{ id: string }, object, EditableTodoPayload>, res: Response) => {
+  if (!Types.ObjectId.isValid(req.params.id)) {
+    throw createError(404, 'Todo not found');
+  }
+
+  const todo = await Todo.findOneAndUpdate(
+    { _id: req.params.id, isDeleted: { $ne: true } },
+    pickEditableFields(req.body),
+    {
+      returnDocument: 'after',
+      runValidators: true,
+    },
+  );
+
+  if (!todo) {
+    throw createError(404, 'Todo not found');
+  }
 
   res.status(200).json({
     success: true,
@@ -128,13 +138,55 @@ const updateTodo = async (req: Request<{ id: string }, object, EditableTodoPaylo
   });
 };
 
-const patchTodo = async (req: Request<{ id: string }, object, EditableTodoPayload>, res: Response) => {
-  await findTodoOrFail(req.params.id);
+const getNeighborPosition = async (id: string | null | undefined, status: TodoStatus) => {
+  if (!id) {
+    return null;
+  }
 
-  const todo = await Todo.findByIdAndUpdate(req.params.id, pickEditableFields(req.body), {
-    returnDocument: 'after',
-    runValidators: true,
-  });
+  const todo = await Todo.findOne({ _id: id, status, isDeleted: { $ne: true } })
+    .select('position')
+    .lean();
+
+  return typeof todo?.position === 'number' ? todo.position : null;
+};
+
+const computePosition = (afterPosition: number | null, beforePosition: number | null) => {
+  if (afterPosition !== null && beforePosition !== null) {
+    return (afterPosition + beforePosition) / 2;
+  }
+
+  if (afterPosition !== null) {
+    return afterPosition + 1000;
+  }
+
+  if (beforePosition !== null) {
+    return beforePosition - 1000;
+  }
+
+  return Date.now();
+};
+
+const moveTodo = async (
+  req: Request<{ id: string }, object, { status: TodoStatus; beforeId?: string | null; afterId?: string | null }>,
+  res: Response,
+) => {
+  if (!Types.ObjectId.isValid(req.params.id)) {
+    throw createError(404, 'Todo not found');
+  }
+
+  const afterPosition = await getNeighborPosition(req.body.afterId, req.body.status);
+  const beforePosition = await getNeighborPosition(req.body.beforeId, req.body.status);
+  const position = computePosition(afterPosition, beforePosition);
+
+  const todo = await Todo.findOneAndUpdate(
+    { _id: req.params.id, isDeleted: { $ne: true } },
+    { status: req.body.status, position },
+    { returnDocument: 'after', runValidators: true },
+  );
+
+  if (!todo) {
+    throw createError(404, 'Todo not found');
+  }
 
   res.status(200).json({
     success: true,
@@ -143,8 +195,22 @@ const patchTodo = async (req: Request<{ id: string }, object, EditableTodoPayloa
 };
 
 const deleteTodo = async (req: Request<{ id: string }>, res: Response) => {
-  await findTodoOrFail(req.params.id);
-  await Todo.findByIdAndDelete(req.params.id);
+  if (!Types.ObjectId.isValid(req.params.id)) {
+    throw createError(404, 'Todo not found');
+  }
+
+  const todo = await Todo.findOneAndUpdate(
+    { _id: req.params.id, isDeleted: { $ne: true } },
+    {
+      isDeleted: true,
+      deletedAt: new Date(),
+    },
+    { returnDocument: 'after' },
+  );
+
+  if (!todo) {
+    throw createError(404, 'Todo not found');
+  }
 
   res.status(204).send();
 };
@@ -153,7 +219,7 @@ export {
   getTodos,
   getTodo,
   createTodo,
-  updateTodo,
   patchTodo,
+  moveTodo,
   deleteTodo,
 };

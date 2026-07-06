@@ -6,14 +6,14 @@ import {
   deleteTodo,
   getTodo,
   getTodos,
+  moveTodo,
   patchTodo,
-  updateTodo,
 } from '../controllers/todoController';
 import {
   createTodoValidation,
   listTodosValidation,
+  moveTodoValidation,
   patchTodoValidation,
-  updateTodoValidation,
   validateId,
 } from '../validations/todoValidation';
 
@@ -25,9 +25,12 @@ router
   .post(createTodoValidation, validateRequest, asyncHandler(createTodo));
 
 router
+  .route('/:id/move')
+  .patch(moveTodoValidation, validateRequest, asyncHandler(moveTodo));
+
+router
   .route('/:id')
   .get(validateId, validateRequest, asyncHandler(getTodo))
-  .put(updateTodoValidation, validateRequest, asyncHandler(updateTodo))
   .patch(patchTodoValidation, validateRequest, asyncHandler(patchTodo))
   .delete(validateId, validateRequest, asyncHandler(deleteTodo));
 

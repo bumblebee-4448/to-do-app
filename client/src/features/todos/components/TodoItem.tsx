@@ -1,10 +1,7 @@
-import { CalendarDays, Pencil, Trash2 } from 'lucide-react';
-import { Badge } from '../../../components/ui/Badge';
-import { Button } from '../../../components/ui/Button';
-import { Checkbox } from '../../../components/ui/Checkbox';
-import { cn } from '../../../utils/cn';
+import { Calendar, Pencil, Trash2 } from 'lucide-react';
 import { formatDueDate, isOverdue } from '../../../utils/date';
 import type { Todo } from '../types';
+import { Badge } from '../../../components/ui/Badge';
 
 type TodoItemProps = {
   todo: Todo;
@@ -13,73 +10,112 @@ type TodoItemProps = {
   onToggle: (todo: Todo) => void;
 };
 
+
+
 export const TodoItem = ({ todo, onDelete, onEdit, onToggle }: TodoItemProps) => {
   const completed = todo.status === 'completed';
   const overdue = isOverdue(todo.dueDate, todo.status);
 
   return (
     <article
-      className={cn(
-        'task-enter rounded-lg border border-zinc-200 bg-white p-4 transition duration-300 ease-editorial dark:border-zinc-700 dark:bg-zinc-900',
-        completed && 'bg-zinc-50 text-zinc-500 dark:bg-zinc-800/70 dark:text-zinc-400',
-      )}
+      className="kanban-card slide-up"
       data-testid={`todo-item-${todo.title}`}
+      style={{
+        display: 'flex',
+        gap: 12,
+        alignItems: 'flex-start',
+        padding: '14px 16px',
+        cursor: 'default',
+      }}
     >
-      <div className="flex gap-3">
-        <Checkbox
-          checked={completed}
-          aria-label={completed ? `Mark ${todo.title} pending` : `Mark ${todo.title} complete`}
-          onChange={() => onToggle(todo)}
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3
-              className={cn(
-                'break-words text-base font-semibold text-zinc-950 dark:text-zinc-50',
-                completed && 'text-zinc-500 line-through dark:text-zinc-400',
-              )}
-            >
-              {todo.title}
-            </h3>
-            <Badge tone={todo.priority}>{todo.priority}</Badge>
-            <Badge tone={todo.status}>{todo.status}</Badge>
-            {overdue ? <Badge tone="overdue">Overdue</Badge> : null}
-          </div>
+      {/* Toggle checkbox */}
+      <button
+        aria-label={completed ? `Đánh dấu "${todo.title}" là chưa hoàn thành` : `Đánh dấu "${todo.title}" là hoàn thành`}
+        title={completed ? 'Mở lại công việc' : 'Đánh dấu hoàn thành'}
+        onClick={() => onToggle(todo)}
+        style={{
+          width: 20,
+          height: 20,
+          borderRadius: '50%',
+          border: completed ? '2px solid #22c55e' : '2px solid var(--border-default)',
+          background: completed ? '#22c55e' : 'transparent',
+          cursor: 'pointer',
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'border-color 200ms, background 200ms',
+          padding: 0,
+          marginTop: 2,
+        }}
+        onMouseEnter={(e) => {
+          if (!completed) (e.currentTarget as HTMLButtonElement).style.borderColor = '#22c55e';
+        }}
+        onMouseLeave={(e) => {
+          if (!completed) (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-default)';
+        }}
+      >
+        {completed && (
+          <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+            <path d="M1.5 4.5L3.5 6.5L7.5 2.5" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </button>
 
-          {todo.description ? (
-            <p className={cn('mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300', completed && 'opacity-60')}>
-              {todo.description}
-            </p>
-          ) : null}
-
-          <div className="mt-3 flex flex-wrap items-center gap-3 font-mono text-xs text-zinc-500 dark:text-zinc-400">
-            <span className="inline-flex items-center gap-1.5">
-              <CalendarDays size={14} aria-hidden="true" />
-              {formatDueDate(todo.dueDate)}
-            </span>
-          </div>
+      {/* Content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <h3
+            className={`kanban-card__title ${completed ? 'kanban-card__title--done' : ''}`}
+            style={{ margin: 0, padding: 0, fontSize: 14 }}
+          >
+            {todo.title}
+          </h3>
+          <Badge tone={todo.status}>{todo.status}</Badge>
+          {overdue && (
+            <Badge tone="overdue">Quá hạn</Badge>
+          )}
         </div>
 
-        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-          <Button
-            variant="ghost"
-            className="h-9 w-9 px-0"
-            aria-label={`Edit ${todo.title}`}
-            title={`Edit ${todo.title}`}
-            onClick={() => onEdit(todo)}
-          >
-            <Pencil size={16} aria-hidden="true" />
-          </Button>
-          <Button
-            variant="danger"
-            className="h-9 w-9 px-0"
-            aria-label={`Delete ${todo.title}`}
-            title={`Delete ${todo.title}`}
-            onClick={() => onDelete(todo)}
-          >
-            <Trash2 size={16} aria-hidden="true" />
-          </Button>
-        </div>
+        {todo.description && (
+          <p className="kanban-card__desc" style={{ margin: '4px 0 8px', opacity: completed ? 0.6 : 1 }}>
+            {todo.description}
+          </p>
+        )}
+
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            fontSize: 11.5,
+            fontFamily: 'var(--font-mono)',
+            color: overdue ? 'var(--color-danger)' : 'var(--text-tertiary)',
+          }}
+        >
+          <Calendar size={13} />
+          {formatDueDate(todo.dueDate)}
+        </span>
+      </div>
+
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+        <button
+          className="icon-btn"
+          aria-label={`Chỉnh sửa ${todo.title}`}
+          title={`Chỉnh sửa ${todo.title}`}
+          onClick={() => onEdit(todo)}
+        >
+          <Pencil size={15} />
+        </button>
+        <button
+          className="icon-btn icon-btn--danger"
+          aria-label={`Xóa ${todo.title}`}
+          title={`Xóa ${todo.title}`}
+          onClick={() => onDelete(todo)}
+        >
+          <Trash2 size={15} />
+        </button>
       </div>
     </article>
   );

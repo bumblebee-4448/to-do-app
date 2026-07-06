@@ -6,22 +6,19 @@ import errorHandler from './middlewares/errorHandler';
 import notFound from './middlewares/notFound';
 
 const app = express();
+const corsOrigins = process.env.CLIENT_ORIGIN
+  ? process.env.CLIENT_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean)
+  : process.env.NODE_ENV === 'production'
+    ? false
+    : ['http://localhost:3000'];
 
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || '*' }));
-app.use(express.json());
+app.use(cors({ origin: corsOrigins }));
+app.use(express.json({ limit: '100kb' }));
 
 if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
-app.get('/health', (_req, res) => {
-  res.status(200).json({
-    success: true,
-    data: {
-      status: 'ok',
-    },
-  });
-});
 
 app.use('/api/v1/todos', todoRoutes);
 app.use(notFound);
